@@ -22,15 +22,14 @@ func Fprint(w io.Writer, v interface{}) {
 // Sprint returns the pretty-printed form of v as a string.
 // The form matches that of Print.
 func Sprint(v interface{}) string {
-	return doSprint(reflect.ValueOf(v), nil)
+	return doSprint(reflect.ValueOf(v), nil, 0)
 }
 
-func doSprint(value reflect.Value, parents []uintptr) string {
+func doSprint(value reflect.Value, parents []uintptr, indents int) string {
 	kind := value.Kind()
 
 	if kind == reflect.Interface {
-		value = value.Elem()
-		kind = value.Kind()
+		return doSprint(value.Elem(), parents, indents)
 	}
 
 	newParents, err := checkParents(value, parents, nil)
@@ -38,35 +37,59 @@ func doSprint(value reflect.Value, parents []uintptr) string {
 		return "<CYCLE>"
 	}
 
-	if kind == reflect.Map {
-		var lines []string
+	ind := indent(indents)
+	baseInd := indent(indents - 1)
+	var b strings.Builder
+
+	switch kind {
+	case reflect.Map:
+		b.WriteString("{")
+		b.WriteString("\n")
 		for _, key := range value.MapKeys() {
-			lines = append(lines, fmt.Sprintf("%v: %v", key, doSprint(value.MapIndex(key), newParents)))
+			b.WriteString(ind)
+			fmt.Fprintf(&b, "%#v", key)
+			b.WriteString(": ")
+			b.WriteString(doSprint(value.MapIndex(key), newParents, indents+1))
+			b.WriteString("\n")
 		}
-		return fmt.Sprintf("{\n  %v\n}", strings.Join(lines, "\n  "))
-	}
-
-	if kind == reflect.Ptr {
-		return fmt.Sprintf("*%v", doSprint(value.Elem(), newParents))
-	}
-
-	if kind == reflect.Slice {
-		var lines []string
+		b.WriteString(baseInd)
+		b.WriteString("}")
+	case reflect.Ptr:
+		fmt.Fprintf(&b, "*%v", doSprint(value.Elem(), newParents, indents+1))
+	case reflect.Slice:
+		b.WriteString("[")
+		b.WriteString("\n")
 		for i := 0; i < value.Len(); i++ {
-			lines = append(lines, value.Index(i).String())
+			b.WriteString(ind)
+			b.WriteString(doSprint(value.Index(i), newParents, indents+1))
+			b.WriteString(",\n")
 		}
-		return fmt.Sprintf("[\n  %v\n]", strings.Join(lines, "\n  "))
-	}
-
-	if kind == reflect.Struct {
-		var lines []string
+		b.WriteString(baseInd)
+		b.WriteString("]")
+	case reflect.Struct:
+		b.WriteString("{")
+		b.WriteString("\n")
 		for i := 0; i < value.NumField(); i++ {
 			t := value.Type()
 			fieldType := t.Field(i)
-			lines = append(lines, fmt.Sprintf("%v: %v", fieldType.Name, doSprint(value.Field(i), newParents)))
+			b.WriteString(ind)
+			b.WriteString(fieldType.Name)
+			b.WriteString(": ")
+			b.WriteString(doSprint(value.Field(i), newParents, indents+1))
+			b.WriteString("\n")
 		}
-		return fmt.Sprintf("{\n  %v\n}", strings.Join(lines, "\n  "))
+		b.WriteString(baseInd)
+		b.WriteString("}")
+	default:
+		fmt.Fprintf(&b, "%#v", value)
 	}
 
-	return fmt.Sprintf("%#v", value)
+	return b.String()
+}
+
+func indent(i int) string {
+	if i <= 0 {
+		return ""
+	}
+	return strings.Repeat("  ", i)
 }
