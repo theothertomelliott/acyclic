@@ -18,21 +18,21 @@ import "github.com/theothertomelliott/acyclic"
 
 func main() {
     // Create a pointer to a struct
-	value := &struct {
-		A string
-		B interface{}
-	}{
-		A: "a string",
-	}
+    value := &struct {
+        A string
+        B interface{}
+    }{
+        A: "a string",
+    }
 
-	// Add a cycle
-	value.B = value
+    // Add a cycle
+    value.B = value
 
-	err := acyclic.Check(value)
-	if err != nil {
-		fmt.Println("Cycle found")
-	} else {
-		fmt.Println("No cycle")
-	}
+    err := acyclic.Check(value)
+    if err != nil {
+        fmt.Println("Cycle found")
+    } else {
+        fmt.Println("No cycle")
+    }
 }
 ```
