@@ -1,10 +1,34 @@
 package acyclic_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/theothertomelliott/acyclic"
 )
+
+func ExampleCheck() {
+	// Create a pointer to a struct
+	value := &struct {
+		A string
+		B interface{}
+	}{
+		A: "a string",
+	}
+
+	// Add a cycle
+	value.B = value
+
+	err := acyclic.Check(value)
+	if err != nil {
+		fmt.Println("Cycle found")
+	} else {
+		fmt.Println("No cycle")
+	}
+
+	// Output:
+	// Cycle found
+}
 
 func TestCheck(t *testing.T) {
 	var tests = []struct {
